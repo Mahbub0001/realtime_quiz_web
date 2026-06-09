@@ -23,7 +23,20 @@ export default function TeacherLogin() {
       localStorage.setItem('teacher_token', response.data.access_token);
       navigate('/teacher');
     } catch (err) {
-      setError('Invalid email or password');
+      if (err.response) {
+        // Server responded with an error status
+        const detail = err.response.data?.detail;
+        if (err.response.status === 401) {
+          setError('Invalid email or password.');
+        } else {
+          setError(detail || `Server error (${err.response.status})`);
+        }
+      } else if (err.request) {
+        // Request was made but no response received (network/CORS issue)
+        setError('Cannot reach the server. Check your internet connection or the backend may be starting up (cold start ~30s). Please try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

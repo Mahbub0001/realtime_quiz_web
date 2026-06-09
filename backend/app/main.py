@@ -22,7 +22,11 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_origin_regex=r"https://.*\.ngrok(-free)?\.(app|dev)",
+    allow_origin_regex=(
+        r"https://.*\.vercel\.app"
+        r"|https://.*\.ngrok(-free)?\.(app|dev)"
+        r"|https://.*\.onrender\.com"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
