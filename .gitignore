@@ -1,0 +1,28 @@
+# Environment secrets — never commit these
+**/.env
+**/.env.local
+**/.env.production
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large zip archives (already in project root)
+*.zip

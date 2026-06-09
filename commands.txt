@@ -1,0 +1,22 @@
+step-1
+-> cd backend
+-> uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+step-2
+-> cd frontend
+-> npm run dev -- --host
+
+step-3
+-> ngrok http --domain=hierocratical-sulema-ungradually.ngrok-free.dev 8000
+
+step-4
+-> ngrok http 5173
+
+step-5
+-> edit backend/.env
+-> FRONTEND_URL=https://NEW-RANDOM-ID.ngrok-free.app
+
+step-6
+-> restart backend
+-> ctrl +c
+-> uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
