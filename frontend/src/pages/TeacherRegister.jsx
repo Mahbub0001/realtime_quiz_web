@@ -36,11 +36,18 @@ export default function TeacherRegister() {
       localStorage.setItem('teacher_token', loginRes.data.access_token);
       navigate('/teacher');
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      if (detail === 'Email already registered') {
-        setError('This email is already registered. Please log in instead.');
+      if (err.response) {
+        const detail = err?.response?.data?.detail;
+        if (detail === 'Email already registered') {
+          setError('This email is already registered. Please log in instead.');
+        } else {
+          setError(detail || 'Registration failed. Please try again.');
+        }
+      } else if (err.request) {
+        const targetUrl = err.config ? `${err.config.baseURL || ''}${err.config.url || ''}` : 'unknown URL';
+        setError(`Cannot reach the server at: ${targetUrl}. Please check your Vercel environment variables and redeploy.`);
       } else {
-        setError(detail || 'Registration failed. Please try again.');
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);

@@ -33,7 +33,8 @@ export default function TeacherLogin() {
         }
       } else if (err.request) {
         // Request was made but no response received (network/CORS issue)
-        setError('Cannot reach the server. Check your internet connection or the backend may be starting up (cold start ~30s). Please try again.');
+        const targetUrl = err.config ? `${err.config.baseURL || ''}${err.config.url || ''}` : 'unknown URL';
+        setError(`Cannot reach the server at: ${targetUrl}. Please check your Vercel environment variables and redeploy.`);
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
