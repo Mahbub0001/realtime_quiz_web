@@ -52,22 +52,6 @@ app.include_router(sessions.router, prefix=f"{settings.API_V1_STR}/sessions", ta
 app.include_router(upload.router, prefix=f"{settings.API_V1_STR}", tags=["upload"])
 app.include_router(protocol.router, tags=["websocket"])
 
-# Global exception handler for general debugging
-@app.exception_handler(Exception)
-async def debug_exception_handler(request: Request, exc: Exception):
-    import traceback
-    tb = traceback.format_exc()
-    print("Debug Exception caught:")
-    print(tb)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
-            "traceback": tb
-        }
-    )
-
 @app.get("/health", tags=["health"])
 def health_check():
     return {"status": "ok"}
