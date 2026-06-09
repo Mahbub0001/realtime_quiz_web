@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import TeacherLogin from './pages/TeacherLogin';
+import TeacherRegister from './pages/TeacherRegister';
 import TeacherDashboard from './pages/TeacherDashboard';
 import CreateQuiz from './pages/CreateQuiz';
 import EditQuiz from './pages/EditQuiz';
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<TeacherLogin />} />
+        <Route path="/register" element={<TeacherRegister />} />
         
         {/* Protected Teacher Routes (Simplified protection for MVP) */}
         <Route path="/teacher" element={<TeacherDashboard />} />

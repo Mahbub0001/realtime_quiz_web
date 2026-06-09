@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import client from '../api/client';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -61,6 +61,13 @@ export default function TeacherLogin() {
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
+
+          <p className="text-center text-sm text-slate-500 mt-2">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-indigo-600 font-semibold hover:underline">
+              Register here
+            </Link>
+          </p>
 
           <div className="mt-6 text-center text-sm text-slate-500 bg-slate-100 p-4 rounded-xl border border-slate-200">
             <p className="font-bold mb-1">Demo Credentials:</p>
