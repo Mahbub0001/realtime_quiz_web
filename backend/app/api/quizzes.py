@@ -4,6 +4,7 @@ from typing import List
 
 from app.database.db import get_db
 from app.models.quiz import Quiz, Question
+from app.models.response import Response
 from app.models.teacher import Teacher
 from app.schemas.quiz import QuizCreate, QuizTeacherRead
 from app.api.auth import get_current_teacher
@@ -64,7 +65,9 @@ def update_quiz(quiz_id: int, quiz_in: QuizCreate, db: Session = Depends(get_db)
     quiz.description = quiz_in.description
 
     # Replace questions completely for MVP
-    # Delete existing questions
+    # Delete responses first to avoid FK violation on PostgreSQL
+    existing_question_ids = db.query(Question.id).filter(Question.quiz_id == quiz.id).subquery()
+    db.query(Response).filter(Response.question_id.in_(existing_question_ids)).delete(synchronize_session=False)
     db.query(Question).filter(Question.quiz_id == quiz.id).delete()
 
     # Add new questions

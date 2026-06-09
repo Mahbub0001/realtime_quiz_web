@@ -50,7 +50,8 @@ export default function CreateQuiz() {
       await client.post('/quizzes', { title, description, questions });
       navigate('/teacher');
     } catch (err) {
-      setError("Failed to save quiz. Please ensure all fields are filled properly.");
+      const message = err.response?.data?.detail || err.message || "Failed to save quiz. Please ensure all fields are filled properly.";
+      setError(message);
     }
   };
 

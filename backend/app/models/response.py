@@ -9,7 +9,7 @@ class Response(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("quiz_sessions.id"))
     student_id = Column(Integer, ForeignKey("students.id"))
-    question_id = Column(Integer, ForeignKey("questions.id"))
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
     selected_option = Column(String, nullable=False)
     is_correct = Column(Boolean, nullable=False)
     response_time_ms = Column(Integer, nullable=False)

@@ -20,7 +20,7 @@ class Question(Base):
     __tablename__ = "questions"
 
     id = Column(Integer, primary_key=True, index=True)
-    quiz_id = Column(Integer, ForeignKey("quizzes.id"))
+    quiz_id = Column(Integer, ForeignKey("quizzes.id", ondelete="CASCADE"))
     text = Column(String, nullable=False)
     shape = Column(String, nullable=False)
     color = Column(String, nullable=False)

@@ -75,7 +75,8 @@ export default function EditQuiz() {
       await client.put(`/quizzes/${quizId}`, { title, description, questions });
       navigate('/teacher');
     } catch (err) {
-      setError("Failed to update quiz. Please ensure all fields are filled properly.");
+      const message = err.response?.data?.detail || err.message || "Failed to update quiz. Please ensure all fields are filled properly.";
+      setError(message);
     }
   };
 
