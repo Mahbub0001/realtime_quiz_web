@@ -38,14 +38,6 @@ async def teacher_websocket(websocket: WebSocket, session_code: str, token: str 
         return
 
     await manager.connect_teacher(websocket, session_code)
-    
-    # Send current participant count to the teacher immediately upon connection
-    participant_count = db.query(Student).filter(Student.session_id == session_db.id).count()
-    await websocket.send_text(json.dumps({
-        "type": "participant_update",
-        "participant_count": participant_count
-    }))
-
     try:
         while True:
             data = await websocket.receive_text()
@@ -163,12 +155,9 @@ async def teacher_websocket(websocket: WebSocket, session_code: str, token: str 
 @router.websocket("/ws/session/{session_code}/student/{student_id}")
 async def student_websocket(websocket: WebSocket, session_code: str, student_id: int, db: Session = Depends(get_db)):
     session_db = db.query(QuizSession).filter(QuizSession.session_code == session_code).first()
-    if not session_db:
-        await websocket.close(code=4004, reason="Not found")
-        return
+    student = db.query(Student).filter(Student.id == student_id, Student.session_id == session_db.id if session_db else False).first()
 
-    student = db.query(Student).filter(Student.id == student_id, Student.session_id == session_db.id).first()
-    if not student:
+    if not session_db or not student:
         await websocket.close(code=4004, reason="Not found")
         return
 
