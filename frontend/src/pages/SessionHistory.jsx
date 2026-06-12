@@ -75,9 +75,20 @@ export default function SessionHistory() {
     s.session_code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const fmt = (dt) => dt
-    ? new Date(dt).toLocaleString('en-BD', { dateStyle: 'medium', timeStyle: 'short' })
-    : '—';
+  const fmt = (dt) => {
+    if (!dt) return '—';
+    // Backend stores UTC without 'Z' — append it so JS parses as UTC, then convert to BD time
+    const utcStr = dt.endsWith('Z') ? dt : dt + 'Z';
+    return new Date(utcStr).toLocaleString('en-GB', {
+      timeZone: 'Asia/Dhaka',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20">
