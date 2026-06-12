@@ -57,25 +57,36 @@ class ScoringManager:
         return new_response
 
     def get_leaderboard(self, db: Session, session_id: int) -> List[Dict[str, Any]]:
-        # Compute leaderboard from Response table
-        # Ordered by total_score descending
-        # Tie-breaker: more correct answers first, then earlier total submission time
-        
-        # We need to aggregate scores and correct answers per student
+        """
+        Leaderboard ranking rules:
+          1st priority: total_score (higher is better)
+          2nd priority: total_response_time_ms (lower is better — answered faster)
+        Ranks are always unique. If two students have the same score,
+        the one who answered faster across all questions ranks higher.
+        """
+
         results = db.query(
             Student.id.label('student_id'),
             Student.name.label('student_name'),
             Student.university_id.label('university_id'),
             func.coalesce(func.sum(Response.score_awarded), 0).label('total_score'),
             func.coalesce(func.sum(func.cast(Response.is_correct, Integer)), 0).label('correct_answers'),
-            func.coalesce(func.sum(Response.response_time_ms), 0).label('total_time')
+            # Sum of response times for correct answers only (faster correct answers = better tiebreaker)
+            func.coalesce(
+                func.sum(
+                    func.cast(Response.is_correct, Integer) * Response.response_time_ms
+                ), 0
+            ).label('total_correct_time_ms')
         ).outerjoin(Response, (Student.id == Response.student_id) & (Response.session_id == session_id)) \
          .filter(Student.session_id == session_id) \
          .group_by(Student.id) \
          .order_by(
-             func.coalesce(func.sum(Response.score_awarded), 0).desc(),
-             func.coalesce(func.sum(func.cast(Response.is_correct, Integer)), 0).desc(),
-             func.coalesce(func.sum(Response.response_time_ms), 0).asc()
+             func.coalesce(func.sum(Response.score_awarded), 0).desc(),          # 1st: highest score
+             func.coalesce(                                                        # 2nd: fastest correct answers
+                 func.sum(
+                     func.cast(Response.is_correct, Integer) * Response.response_time_ms
+                 ), 0
+             ).asc()
          ).all()
 
         leaderboard = []
@@ -86,9 +97,10 @@ class ScoringManager:
                 "student_name": row.student_name,
                 "university_id": row.university_id,
                 "total_score": int(row.total_score),
-                "correct_answers": int(row.correct_answers)
+                "correct_answers": int(row.correct_answers),
+                "total_correct_time_ms": int(row.total_correct_time_ms),
             })
-            
+
         return leaderboard
 
 scoring_manager = ScoringManager()
