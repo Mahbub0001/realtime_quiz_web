@@ -60,3 +60,17 @@ class LeaderboardEntryRead(BaseModel):
     total_score: int
     correct_answers: int
     rank: int
+
+class SessionHistoryEntry(BaseModel):
+    session_id: int
+    session_code: str
+    quiz_id: int
+    quiz_title: str
+    status: str
+    participant_count: int
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    leaderboard: List[LeaderboardEntryRead] = []
+
+    class Config:
+        from_attributes = True

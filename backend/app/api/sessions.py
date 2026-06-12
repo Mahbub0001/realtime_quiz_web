@@ -13,8 +13,9 @@ from app.models.quiz import Quiz
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.schemas.session import (
-    SessionCreate, SessionRead, 
-    StudentJoinRequest, PublicSessionRead, StudentJoinResponse
+    SessionCreate, SessionRead,
+    StudentJoinRequest, PublicSessionRead, StudentJoinResponse,
+    SessionHistoryEntry, LeaderboardEntryRead
 )
 from app.api.auth import get_current_teacher
 from app.realtime.manager import manager
@@ -91,6 +92,51 @@ def join_session(join_token: str, join_req: StudentJoinRequest, db: Session = De
 
 
 # ── Protected teacher routes ──
+
+@router.get("/history", response_model=List[SessionHistoryEntry])
+def get_session_history(db: Session = Depends(get_db), current_teacher: Teacher = Depends(get_current_teacher)):
+    """Return all ended sessions for the current teacher, newest first, with leaderboard."""
+    from app.realtime.scoring import scoring_manager
+    from app.models.student import Student as StudentModel
+
+    sessions = (
+        db.query(QuizSession)
+        .filter(
+            QuizSession.teacher_id == current_teacher.id,
+            QuizSession.status == "ended"
+        )
+        .order_by(QuizSession.ended_at.desc())
+        .all()
+    )
+
+    result = []
+    for s in sessions:
+        participant_count = db.query(StudentModel).filter(StudentModel.session_id == s.id).count()
+        raw_lb = scoring_manager.get_leaderboard(db, s.id)
+        leaderboard = [
+            LeaderboardEntryRead(
+                student_id=entry["student_id"],
+                student_name=entry["student_name"],
+                university_id=entry["university_id"],
+                total_score=entry["total_score"],
+                correct_answers=entry["correct_answers"],
+                rank=entry["rank"],
+            )
+            for entry in raw_lb
+        ]
+        result.append(SessionHistoryEntry(
+            session_id=s.id,
+            session_code=s.session_code,
+            quiz_id=s.quiz_id,
+            quiz_title=s.quiz.title if s.quiz else "Unknown Quiz",
+            status=s.status,
+            participant_count=participant_count,
+            started_at=s.started_at,
+            ended_at=s.ended_at,
+            leaderboard=leaderboard,
+        ))
+    return result
+
 
 @router.post("/", response_model=SessionRead, status_code=status.HTTP_201_CREATED)
 def create_session(session_in: SessionCreate, db: Session = Depends(get_db), current_teacher: Teacher = Depends(get_current_teacher)):

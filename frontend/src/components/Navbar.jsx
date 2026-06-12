@@ -18,7 +18,13 @@ export default function Navbar() {
         <span className="hidden sm:inline">Real-time Quiz by Math Club</span>
         <span className="sm:hidden">Quiz</span>
       </div>
-      <div className="flex gap-2 md:gap-4">
+      <div className="flex gap-2 md:gap-3 items-center">
+        <button
+          onClick={() => navigate('/teacher/history')}
+          className="text-slate-300 hover:text-white text-sm font-semibold px-3 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1.5"
+        >
+          📋 <span className="hidden sm:inline">History</span>
+        </button>
         <Button variant="ghost" className="text-slate-300 hover:text-white !px-3 md:!px-4 !py-2 text-sm md:text-base" onClick={handleLogout}>
           Sign Out
         </Button>

@@ -5,6 +5,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import CreateQuiz from './pages/CreateQuiz';
 import EditQuiz from './pages/EditQuiz';
 import SessionLobby from './pages/SessionLobby';
+import SessionHistory from './pages/SessionHistory';
 import StudentJoin from './pages/StudentJoin';
 import StudentPlay from './pages/StudentPlay';
 import Leaderboard from './pages/Leaderboard';
@@ -19,6 +20,7 @@ function App() {
         
         {/* Protected Teacher Routes (Simplified protection for MVP) */}
         <Route path="/teacher" element={<TeacherDashboard />} />
+        <Route path="/teacher/history" element={<SessionHistory />} />
         <Route path="/teacher/quizzes/new" element={<CreateQuiz />} />
         <Route path="/teacher/quizzes/:quizId/edit" element={<EditQuiz />} />
         <Route path="/teacher/session/:sessionCode" element={<SessionLobby />} />
