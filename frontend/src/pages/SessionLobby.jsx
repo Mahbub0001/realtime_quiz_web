@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import LeaderboardTable from '../components/LeaderboardTable';
 import OptionGrid from '../components/OptionGrid';
+import { exportToPDF, exportToExcel } from '../utils/exportLeaderboard';
 
 export default function SessionLobby() {
   const { sessionCode } = useParams();
@@ -17,6 +18,7 @@ export default function SessionLobby() {
   const wsRef = useRef(null);
 
   const [sessionInfo, setSessionInfo] = useState(null);
+  const [quizTitle, setQuizTitle] = useState('Quiz');
   const [participantsCount, setParticipantsCount] = useState(0);
   const [gameState, setGameState] = useState('waiting');
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -84,7 +86,16 @@ export default function SessionLobby() {
     const sessionId = location.state?.session_id;
     if (sessionId) {
       client.get(`/sessions/${sessionId}`)
-        .then(res => setSessionInfo(res.data))
+        .then(res => {
+          setSessionInfo(res.data);
+          // Fetch quiz title for export
+          const qId = res.data.quiz_id;
+          if (qId) {
+            client.get(`/quizzes/${qId}`)
+              .then(qRes => setQuizTitle(qRes.data.title || 'Quiz'))
+              .catch(() => {});
+          }
+        })
         .catch(err => console.error('Session fetch error', err));
     }
 
@@ -259,7 +270,32 @@ export default function SessionLobby() {
               {gameState === 'ended' && (
                 <div className="text-center animate-fade-in">
                   <div className="text-6xl md:text-8xl mb-4 md:mb-6">🏁</div>
-                  <h1 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 md:mb-8">Quiz Complete!</h1>
+                  <h1 className="text-3xl md:text-5xl font-black text-slate-800 mb-4 md:mb-6">Quiz Complete!</h1>
+
+                  {/* Download Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6 md:mb-8">
+                    <button
+                      onClick={() => exportToPDF(
+                        leaderboard,
+                        quizTitle,
+                        sessionCode
+                      )}
+                      className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 active:scale-95 transition-all shadow-md"
+                    >
+                      <span>📄</span> Download PDF
+                    </button>
+                    <button
+                      onClick={() => exportToExcel(
+                        leaderboard,
+                        quizTitle,
+                        sessionCode
+                      )}
+                      className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all shadow-md"
+                    >
+                      <span>📊</span> Download Excel
+                    </button>
+                  </div>
+
                   <Button onClick={() => navigate('/teacher')} variant="secondary" className="px-8 md:px-12 py-3 md:py-4 text-lg md:text-xl">
                     Return to Dashboard
                   </Button>
