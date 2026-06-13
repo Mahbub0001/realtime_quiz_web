@@ -211,15 +211,14 @@ async def student_websocket(websocket: WebSocket, session_code: str, student_id:
                             # Confirm to student
                             await websocket.send_text(json.dumps({"type": "answer_received"}))
                             
-                            # Broadcast leaderboard update
+                            # Send leaderboard update only to the teacher to save bandwidth and CPU
+                            # Students do not render the leaderboard during the answer phase.
                             leaderboard = scoring_manager.get_leaderboard(db, session_db.id)
                             update_msg = {
                                 "type": "leaderboard_update",
                                 "leaderboard": leaderboard
                             }
-                            # The prompt says: "Broadcast updated leaderboard to teacher and optionally all students."
-                            # We'll broadcast to all for real-time vibe, or just teacher. The prompt example format is standard.
-                            await manager.broadcast_to_session(session_code, update_msg)
+                            await manager.send_to_teacher(session_code, update_msg)
                             
                         except IntegrityError:
                             db.rollback()

@@ -1,6 +1,7 @@
-from fastapi import WebSocket
-from typing import Dict, List, Any
+import asyncio
 import json
+from typing import Dict, List, Any
+from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
@@ -34,28 +35,33 @@ class ConnectionManager:
                 del self.students[session_code]
 
     async def broadcast_to_session(self, session_code: str, message: dict):
-        """Send to both teachers and students in a session."""
+        """Send to both teachers and students in a session concurrently."""
         text_data = json.dumps(message)
+        tasks = []
         if session_code in self.teachers:
             for connection in self.teachers[session_code]:
-                await connection.send_text(text_data)
+                tasks.append(connection.send_text(text_data))
         if session_code in self.students:
             for connection in self.students[session_code].values():
-                await connection.send_text(text_data)
+                tasks.append(connection.send_text(text_data))
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def send_to_teacher(self, session_code: str, message: dict):
-        """Send only to teachers in a session."""
+        """Send only to teachers in a session concurrently."""
         if session_code in self.teachers:
             text_data = json.dumps(message)
-            for connection in self.teachers[session_code]:
-                await connection.send_text(text_data)
+            tasks = [connection.send_text(text_data) for connection in self.teachers[session_code]]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     async def send_to_students(self, session_code: str, message: dict):
-        """Send only to students in a session."""
+        """Send only to students in a session concurrently."""
         if session_code in self.students:
             text_data = json.dumps(message)
-            for connection in self.students[session_code].values():
-                await connection.send_text(text_data)
+            tasks = [connection.send_text(text_data) for connection in self.students[session_code].values()]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     async def send_to_student(self, session_code: str, participant_id: int, message: dict):
         """Send to a specific student."""
@@ -63,3 +69,4 @@ class ConnectionManager:
             await self.students[session_code][participant_id].send_text(json.dumps(message))
 
 manager = ConnectionManager()
+
