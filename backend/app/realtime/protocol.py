@@ -46,8 +46,18 @@ def teacher_next_question_sync(session_code: str):
             question = questions[next_index]
             session_db.current_question_index = next_index
             session_db.options_visible = True
+            
+            # Extract attributes before commit to prevent DetachedInstanceError
+            q_dict = {
+                "id": question.id, "text": question.text, "shape": question.shape,
+                "color": question.color, "time_limit_seconds": question.time_limit_seconds,
+                "points": question.points, "order_index": question.order_index,
+                "image_url": question.image_url, "option_a": question.option_a,
+                "option_b": question.option_b, "option_c": question.option_c,
+                "option_d": question.option_d, "correct_option": question.correct_option
+            }
             db.commit()
-            return question
+            return q_dict
         return None
 
 def teacher_reveal_options_sync(session_code: str):
@@ -55,11 +65,18 @@ def teacher_reveal_options_sync(session_code: str):
         session_db = db.query(QuizSession).filter(QuizSession.session_code == session_code).first()
         if not session_db: return None
         session_db.options_visible = True
-        db.commit()
+        
         questions = db.query(Question).filter(Question.quiz_id == session_db.quiz_id).order_by(Question.order_index.asc()).all()
+        q_dict = None
         if 0 <= session_db.current_question_index < len(questions):
-            return questions[session_db.current_question_index]
-        return None
+            question = questions[session_db.current_question_index]
+            q_dict = {
+                "id": question.id,
+                "option_a": question.option_a, "option_b": question.option_b,
+                "option_c": question.option_c, "option_d": question.option_d
+            }
+        db.commit()
+        return q_dict
 
 def teacher_show_results_sync(session_code: str):
     with SessionLocal() as db:
@@ -68,9 +85,10 @@ def teacher_show_results_sync(session_code: str):
         questions = db.query(Question).filter(Question.quiz_id == session_db.quiz_id).order_by(Question.order_index.asc()).all()
         if 0 <= session_db.current_question_index < len(questions):
             question = questions[session_db.current_question_index]
+            q_dict = {"id": question.id, "correct_option": question.correct_option}
             leaderboard = scoring_manager.get_leaderboard(db, session_db.id)
             has_next = session_db.current_question_index + 1 < len(questions)
-            return question, leaderboard, has_next
+            return q_dict, leaderboard, has_next
         return None, None, False
 
 def teacher_end_session_sync(session_code: str):
@@ -103,26 +121,26 @@ async def teacher_websocket(websocket: WebSocket, session_code: str, token: str 
             if msg_type == "next_question":
                 question = await run_in_threadpool(teacher_next_question_sync, session_code)
                 if question:
-                    scoring_manager.start_question(session_code, question.id)
+                    scoring_manager.start_question(session_code, question["id"])
                     student_q = {
                         "type": "question_started",
                         "question": {
-                            "question_id": question.id, "text": question.text, "shape": question.shape,
-                            "color": question.color, "time_limit_seconds": question.time_limit_seconds,
-                            "points": question.points, "order_index": question.order_index,
-                            "image_url": question.image_url, "options_visible": True,
-                            "options": {"A": question.option_a, "B": question.option_b, "C": question.option_c, "D": question.option_d}
+                            "question_id": question["id"], "text": question["text"], "shape": question["shape"],
+                            "color": question["color"], "time_limit_seconds": question["time_limit_seconds"],
+                            "points": question["points"], "order_index": question["order_index"],
+                            "image_url": question["image_url"], "options_visible": True,
+                            "options": {"A": question["option_a"], "B": question["option_b"], "C": question["option_c"], "D": question["option_d"]}
                         }
                     }
                     await manager.send_to_students(session_code, student_q)
                     teacher_q = {
                         "type": "teacher_question_started",
                         "question": {
-                            "question_id": question.id, "text": question.text, "shape": question.shape,
-                            "color": question.color, "option_a": question.option_a, "option_b": question.option_b,
-                            "option_c": question.option_c, "option_d": question.option_d,
-                            "correct_option": question.correct_option, "time_limit_seconds": question.time_limit_seconds,
-                            "image_url": question.image_url
+                            "question_id": question["id"], "text": question["text"], "shape": question["shape"],
+                            "color": question["color"], "option_a": question["option_a"], "option_b": question["option_b"],
+                            "option_c": question["option_c"], "option_d": question["option_d"],
+                            "correct_option": question["correct_option"], "time_limit_seconds": question["time_limit_seconds"],
+                            "image_url": question["image_url"]
                         }
                     }
                     await websocket.send_text(json.dumps(teacher_q))
@@ -132,8 +150,8 @@ async def teacher_websocket(websocket: WebSocket, session_code: str, token: str 
                 if question:
                     opts_msg = {
                         "type": "options_revealed",
-                        "question_id": question.id,
-                        "options": {"A": question.option_a, "B": question.option_b, "C": question.option_c, "D": question.option_d}
+                        "question_id": question["id"],
+                        "options": {"A": question["option_a"], "B": question["option_b"], "C": question["option_c"], "D": question["option_d"]}
                     }
                     await manager.send_to_students(session_code, opts_msg)
 
@@ -141,7 +159,7 @@ async def teacher_websocket(websocket: WebSocket, session_code: str, token: str 
                 question, leaderboard, has_next = await run_in_threadpool(teacher_show_results_sync, session_code)
                 if question:
                     results_msg = {
-                        "type": "results_revealed", "question_id": question.id, "correct_option": question.correct_option,
+                        "type": "results_revealed", "question_id": question["id"], "correct_option": question["correct_option"],
                         "leaderboard": leaderboard, "has_next": has_next
                     }
                     await manager.broadcast_to_session(session_code, results_msg)
