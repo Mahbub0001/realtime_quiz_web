@@ -80,7 +80,6 @@ export default function SessionHistory() {
     // Backend stores UTC without 'Z' — append it so JS parses as UTC, then convert to BD time
     const utcStr = dt.endsWith('Z') ? dt : dt + 'Z';
     return new Date(utcStr).toLocaleString('en-GB', {
-      timeZone: 'Asia/Dhaka',
       day: '2-digit',
       month: 'short',
       year: 'numeric',

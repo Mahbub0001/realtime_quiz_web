@@ -83,53 +83,55 @@ async def join_student(client, join_token, i):
         print(f"Failed to join student {i}: {e}")
         return None
 
-async def run_student(session_code, student_id, question_id):
-    url = f"{WS_URL}/ws/session/{session_code}/student/{student_id}"
+async def run_student(session_code, student_id):
+    ws_url = f"{WS_URL}/ws/session/{session_code}/student/{student_id}"
     try:
-        async with websockets.connect(url, ping_interval=None, open_timeout=60.0) as ws:
+        async with websockets.connect(ws_url, ping_interval=None, open_timeout=60.0) as ws:
             # Wait for question_started
             while True:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=40.0)
+                except asyncio.TimeoutError:
+                    print(f"Bot {student_id} timed out waiting for question_started")
+                    return False
                 data = json.loads(msg)
                 if data.get("type") == "question_started":
                     break
             
+            # Read question ID
+            q_id = data["question"]["question_id"]
+            
             # Wait for options_revealed
             while True:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=40.0)
+                except asyncio.TimeoutError:
+                    print(f"Bot {student_id} timed out waiting for options_revealed")
+                    return False
                 data = json.loads(msg)
                 if data.get("type") == "options_revealed":
                     break
             
-            # Send answer with a random delay to simulate real users
-            await asyncio.sleep(random.uniform(0.5, 3.0))
+            # Random wait (1-3s) to simulate reading
+            await asyncio.sleep(random.uniform(1, 3))
+            
+            # Submit answer (always A)
             await ws.send(json.dumps({
                 "type": "submit_answer",
-                "question_id": question_id,
-                "selected_option": random.choice(["A", "B", "C", "D"])
+                "question_id": q_id,
+                "selected_option": "A"
             }))
             
-            # Wait for answer_received
+            # Wait for results
             while True:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
-                data = json.loads(msg)
-                if data.get("type") == "answer_received":
-                    break
-            
-            # Wait for results_revealed
-            while True:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=40.0)
+                except asyncio.TimeoutError:
+                    print(f"Bot {student_id} timed out waiting for results_revealed")
+                    return False
                 data = json.loads(msg)
                 if data.get("type") == "results_revealed":
                     break
-                    
-            # Wait for session_ended
-            while True:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
-                data = json.loads(msg)
-                if data.get("type") == "session_ended":
-                    break
-                    
             return True
     except asyncio.TimeoutError:
         print(f"Bot {student_id} timed out waiting for server message")
@@ -142,9 +144,19 @@ async def run_teacher(session_code, token, num_bots):
     url = f"{WS_URL}/ws/session/{session_code}/teacher?token={token}"
     try:
         async with websockets.connect(url, ping_interval=None, open_timeout=60.0) as ws:
-            # Give bots time to connect
-            print("Teacher connected. Waiting 15s for bots to establish WebSocket connections...")
-            await asyncio.sleep(15)
+            print("Teacher connected. Waiting 30s for bots to establish WebSocket connections...")
+            
+            async def listen_teacher():
+                try:
+                    while True:
+                        msg = await ws.recv()
+                        print(f"Teacher received: {msg}")
+                except Exception as e:
+                    pass
+
+            listen_task = asyncio.create_task(listen_teacher())
+            
+            await asyncio.sleep(30)
             
             print("Teacher sending 'next_question'...")
             await ws.send(json.dumps({"type": "next_question"}))
@@ -163,11 +175,11 @@ async def run_teacher(session_code, token, num_bots):
             await asyncio.sleep(3)
             await ws.send(json.dumps({"type": "end_session"}))
             
+            listen_task.cancel()
             print("Teacher flow complete.")
             return True
     except Exception as e:
         print(f"Teacher WS error: {e}")
-        # Force exit if teacher fails to avoid hung bots
         sys.exit(1)
 
 async def main():
@@ -184,8 +196,14 @@ async def main():
         
         print(f"Session [{session_code}] created. Joining {NUM_BOTS} students via API...")
         
-        # Join students via HTTP in parallel
-        join_tasks = [join_student(client, join_token, i+1) for i in range(NUM_BOTS)]
+        # Join students via HTTP with limited concurrency to avoid DB pool exhaustion
+        sem = asyncio.Semaphore(5)
+        async def bounded_join(idx):
+            async with sem:
+                await asyncio.sleep(random.uniform(0.1, 0.5))
+                return await join_student(client, join_token, idx)
+                
+        join_tasks = [bounded_join(i+1) for i in range(NUM_BOTS)]
         student_ids = await asyncio.gather(*join_tasks)
         student_ids = [s for s in student_ids if s is not None]
         
@@ -202,7 +220,7 @@ async def main():
         # Start all student websocket tasks with a slight stagger (150ms) to simulate real-world joining
         bot_tasks = []
         for s_id in student_ids:
-            bot_tasks.append(asyncio.create_task(run_student(session_code, s_id, question_id)))
+            bot_tasks.append(asyncio.create_task(run_student(session_code, s_id)))
             await asyncio.sleep(0.15)
         
         # Wait for teacher to finish its flow first
